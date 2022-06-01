@@ -1,0 +1,7 @@
+material elastic [
+	 name = steel
+	 rho = 8000      # density
+	 E   = 200e9      # young's modulus
+	 nu  = 0    # poisson's ratio
+     finite_deformation = true
+]
