@@ -36,10 +36,10 @@ class CoupledRB(RBFundamentals):
         self.angle_mtrx = np.zeros((3, 3, len(self.time_array)))
         self.angle_mtrx[:, :, 0] = self.angle_mtrx_0
         self.rb_omega = np.zeros((self.ndim, len(self.time_array)))
-        print(self.rb_omega)
+
         self.rb_alpha = np.zeros((self.ndim, len(self.time_array)))
         self.rb_omega[:, 0] = self.rb_omega_0
-        print(self.rb_omega)
+
         self.r=np.zeros((self.num_modes, len(self.time_array)))
         self.r_dot=np.zeros((self.num_modes, len(self.time_array)))
         
