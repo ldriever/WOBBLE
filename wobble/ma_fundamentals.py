@@ -489,7 +489,7 @@ class MAFundamentals(ABC):
         if velocity_save_path is not None:
             np.savetxt(velocity_save_path, self.velocity_vectors)
 
-    def save_modes(self, modes_save_path=None):
+    def save_modes(self, modes_save_path=None, **kwargs):
         """
         Function that saves the computed eigenvalues and vectors to a csv file
         :param modes_save_path:   file path to which the information is to be saved. Should have mime type csv
