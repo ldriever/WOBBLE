@@ -1,3 +1,5 @@
+examples/sample_data_files/eigenmode_files/fine_modes.csv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

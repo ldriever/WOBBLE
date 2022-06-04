@@ -7,6 +7,14 @@ from .ma_fundamentals import get_alpha_beta
 
 
 class CoupledRB(RBFundamentals):
+    """
+    Class implementing the CoupledRB algorithm. Inherits from RBFundamentals.
+    
+    Methods:
+        get_f_fict
+    
+        solve_system
+    """
     def __init__(self,
                  object_name,
                  dimensions,
@@ -22,12 +30,21 @@ class CoupledRB(RBFundamentals):
         self.f_fict=None
         
     def get_f_fict(self, rb_alpha, rb_omega, t):
+        """
+        Computes the fictitious forces given a timestep, angular acceleration and angular velocity.
+        :param rb_alpha:   angular acceleration of body
+        :param rb_omega:   angular velocity of body
+        :param t:   time in simulation
+        """
         disp = self.mesh_nodes.flatten()-self.cm_repeated+self.displacement_vectors[:, t]
         disp=disp.reshape([self.mesh_num_nodes, 3])
         m_extended = (self.m_lumped*np.ones([3, self.mesh_num_nodes])).T
         return (m_extended*(-np.cross(rb_alpha, disp)-2*np.cross(rb_omega, self.velocity_vectors[:, t].reshape([self.mesh_num_nodes, 3])) -np.cross(rb_omega, np.cross(rb_omega, disp)))).flatten()
 
     def solve_system(self):
+        """
+        Solves the coupled system using the CoupledRB algorithm.
+        """
         if self.time_array is None:
             raise SolutionError('No time array at which to calculate the solution.\nSet a time array for self.time_array or pass a suitable array as argument to this function.')
                 

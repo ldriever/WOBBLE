@@ -17,8 +17,45 @@ from .ma_exceptions import *
 
 class MAFundamentals(ABC):
     """
-    WOBBLE: Waves Of Beams and Bodies for Loading and Excitations
-    TODO: write documentation
+    Abstract class implementing the main methods required for all solvers
+    
+    Methods:
+        create_mesh
+        
+        initialise_model
+        
+        apply_boundary_conditions
+        
+        assemble_stiffness
+        
+        assemble_mass
+        
+        find_eigenmodes
+        
+        project_force
+        
+        project_initial_displacement
+        
+        project_initial_velocity
+        
+        solve_step_loading
+        
+        save_alpha_beta_offset
+        
+        get_r_and_r_dot
+        
+        get_displacement_vectors
+        
+        get_velocity_vectors
+        
+        save_modes
+        
+        save_physical_vibrations
+        
+        get_vib_energy
+        
+        plot_vibrational_energy
+        
     """
     def __init__(self,
                  object_name,
@@ -100,6 +137,9 @@ class MAFundamentals(ABC):
 
     # Methods for setting up and solving the system:
     def create_mesh(self, overload_geometry_file=None, mesh_save_path=None, **kwargs):
+        """
+        Given a geometry file, creates a mesh using gmsh. Note: mesh is of order 1.
+        """
         if overload_geometry_file:
             geometry_file_path = overload_geometry_file
         elif self.geometry_file:
@@ -114,6 +154,9 @@ class MAFundamentals(ABC):
         self.mesh_file = mesh_save_path
 
     def initialize_model(self, overload_mesh_file=None, overload_material_file=None, **kwargs):
+        """
+        Initialises the attributes associated with the mesh.
+        """
         if overload_mesh_file:
             mesh_file_path = overload_mesh_file
         elif self.mesh_file:
@@ -146,7 +189,9 @@ class MAFundamentals(ABC):
 
     def apply_boundary_conditions(self, overload_bc_dicts=None, **kwargs):
         """
-        EXAMPLE FOR bc_dicts:
+        Apply given boundary conditions (follows convention of akantu).
+        
+        Example boundary conditions:
         bc_dicts = [{'type': 'FixedValue', 'value': 0.0, 'axis': 'x', 'group': 'left'},
                     {'type': 'IncrementValue', 'value': 1.5, 'axis': 'y', 'group': 'top'},
                     {'type': 'FromTraction', 'traction': surface_traction, 'group': 'front'}]
@@ -182,6 +227,9 @@ class MAFundamentals(ABC):
             self.num_modes = np.sum(self.blocked_dof_mask)
 
     def assemble_stiffness(self, overload_k_path=None, overload_k_star_path=None, **kwargs):
+        """
+        Assembles the stiffness matrix K for the mesh.
+        """
         k = None
         if overload_k_star_path:
             self.k_star = np.loadtxt(overload_k_star_path)
@@ -202,6 +250,9 @@ class MAFundamentals(ABC):
             self.k_star = csr_matrix(k[self.blocked_dof_mask, :][:, self.blocked_dof_mask].copy())
 
     def assemble_mass(self, overload_m_path=None, overload_m_star_path=None, **kwargs):
+        """
+        Assembles the mass matrix M for the mesh.
+        """
         m = None
         if overload_m_star_path:
             self.m_star = np.loadtxt(overload_m_star_path)
@@ -222,6 +273,11 @@ class MAFundamentals(ABC):
             self.m_star = csr_matrix(m[self.blocked_dof_mask, :][:, self.blocked_dof_mask].copy())
 
     def find_eigenmodes(self, eigenmode_path=None, overload_num_modes=None, save_modes=False, **kwargs):
+        """
+        Computes the eigenmodes of the system i.e. the eigenvalues and eigenvectors of M^-1 K. 
+        
+        Rigid body modes are already known, so these are explicitly included when rigid body dynamics solvers are used.
+        """
         if eigenmode_path:
             self.eigenmode_path = eigenmode_path
         
@@ -291,6 +347,9 @@ class MAFundamentals(ABC):
             self.eigenvectors_boundary = self.eigenvectors[self.boundary_mask[self.blocked_dof_mask]]
 
     def project_force(self, overload_force_path=None, overload_projected_force_path=None, unprojected_force_array=None, force_array=None, force_times=None, **kwargs):
+        """
+        Computes the projected force by either reading from a file or projecting a physical force into modal space.
+        """
         if force_array is not None and force_times is not None:
             self.projected_force = force_array
             self.force_times = force_times
@@ -329,6 +388,9 @@ class MAFundamentals(ABC):
                 self.projected_force = self.eigenvectors_boundary.T @ container[1:, :][self.blocked_dof_mask[ self.boundary_mask], :]
 
     def project_initial_displacement(self, overload_initial_displacement_path=None, overload_projected_initial_displacement_path=None, **kwargs):
+        """
+        Computes the projected initial displacement by either reading from a file or projecting the initial displacement into modal space.
+        """
         projected = False
         if overload_projected_initial_displacement_path:
             self.projected_initial_disp = np.loadtxt(overload_projected_initial_displacement_path)
@@ -353,6 +415,9 @@ class MAFundamentals(ABC):
             self.projected_initial_disp = self.proj_matrix @ displacement
 
     def project_initial_velocity(self, overload_initial_velocity_path=None, overload_projected_initial_velocity_path=None, **kwargs):
+        """
+        Computes the projected initial velocity by either reading from a file or projecting the initial velocity into modal space.
+        """
         projected = False
         if overload_projected_initial_velocity_path:
             self.projected_initial_vel = np.loadtxt(overload_projected_initial_velocity_path)
@@ -376,6 +441,9 @@ class MAFundamentals(ABC):
             self.projected_initial_vel = self.proj_matrix @ velocity
 
     def solve_step_loading(self, save_solution=None, **kwargs):
+        """
+        Computes the alphas and betas.
+        """ 
         if self.projected_force is None:
             self.project_force(**kwargs)
         if self.projected_initial_disp is None:
@@ -440,7 +508,10 @@ class MAFundamentals(ABC):
         np.savetxt(ab_save_path, np.vstack((self.force_times, self.alphas, self.betas, self.offset)), delimiter=",")
 
     def get_r_and_r_dot(self, time_array=None, **kwargs):
-
+        """
+        Computes the modal solution.
+        :param time_array: array of times to compute solution at
+        """
         if time_array is not None:
             self.time_array = time_array
 
@@ -466,6 +537,9 @@ class MAFundamentals(ABC):
 
     # Methods for retrieving primary information:
     def get_displacement_vectors(self, displacement_save_path=None, **kwargs):
+        """
+        Computes the physical displacements from the modal solution.
+        """
         if self.r is None:
             self.get_r_and_r_dot(**kwargs)
 
@@ -478,6 +552,9 @@ class MAFundamentals(ABC):
             np.savetxt(displacement_save_path, self.displacement_vectors)
 
     def get_velocity_vectors(self, velocity_save_path=None, **kwargs):
+        """
+        Computes the physical velocities from the modal solution.
+        """
         if self.r_dot is None:
             self.get_r_and_r_dot(**kwargs)
 
@@ -504,6 +581,10 @@ class MAFundamentals(ABC):
         np.savetxt(modes_save_path, np.vstack((self.eigenvalues.reshape(1, -1), self.eigenvectors)), delimiter=",")
 
     def save_physical_vibrations(self, file_base_name=None, freq=1, **kwargs):
+        """
+        Function that saves the physical vibrations of the system in paraview format.
+        :param freq:   save every freq-th displacement
+        """
         if self.displacement_vectors is None:
             self.get_displacement_vectors(**kwargs)
 
@@ -526,6 +607,9 @@ class MAFundamentals(ABC):
                 self.model.dump()
             
     def get_vib_energy(self, **kwargs):
+        """
+        Function that computes the vibrational energy of the system using the modal solution.
+        """
         if self.r is None or self.r_dot is None:
             raise SolutionError('No solution in modal space (r and r_dot) that can be used to compute the vibrational energy')
             
@@ -533,6 +617,9 @@ class MAFundamentals(ABC):
         self.vib_pe = .5 * np.sum(self.r * self.r * self.eigenvalues.reshape(-1, 1), axis=0)
         
     def get_force_energy_correction(self, **kwargs):
+        """
+        Computes the force energy correction f_ext dot u, useful for checking the behaviour of the energy.
+        """
         if self.displacement_vectors is None:
             self.get_displacement_vectors(**kwargs)
         if self.velocity_vectors is None:
@@ -554,7 +641,9 @@ class MAFundamentals(ABC):
             self.force_energy_correction[mask] = self.displacement_vectors[:, mask].T @ forces[:,t]
     
     def plot_vibrational_energy(self, force_energy_correction=False, **kwargs):
-
+        """
+        Plots the vibrational energy for visualisation purposes.
+        """
         if force_energy_correction and self.force_energy_correction is None:
             raise SolutionError('There is no force correction available')
         if self.vib_pe is None or self.vib_ke is None:
@@ -577,6 +666,9 @@ class MAFundamentals(ABC):
 
 # Auxilliary functions:
 def get_aka_axis(label):
+    """
+    Helper function to get the akantu axis label.
+    """
     if label in ['x', 'X', '_x', '_X']:
         return aka._x
     if label in ['y', 'Y', '_y', '_Y']:
@@ -588,6 +680,11 @@ def get_aka_axis(label):
 
 
 def get_alpha_beta(a, b, phi, theta):
+    """
+    Helper function to compute alpha and beta at a given solution step.
+    
+    Params as given in report.
+    """
     c = a * np.sin(phi) + b * np.cos(theta)
     d = a * np.cos(phi) - b * np.sin(theta)
 

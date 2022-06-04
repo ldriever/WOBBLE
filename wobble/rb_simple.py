@@ -6,6 +6,12 @@ from scipy.spatial.transform import Rotation as rot
 
 
 class SimpleRB(RBFundamentals):
+    """
+    Class implementing the SimpleRB algorithm. Inherits from RBFundamentals.
+    
+    Methods:
+        solve_system
+    """
     def __init__(self,
                  object_name,
                  dimensions,
@@ -20,6 +26,9 @@ class SimpleRB(RBFundamentals):
         self.moi_inv = None
 
     def solve_system(self, **kwargs):
+        """
+        Solves the coupled system using the SimpleRB algorithm.
+        """
         self.moi, self.moi_inv = self.find_moi(self.mesh_nodes)
         
         # Doing the modal analysis part of the solution:
