@@ -36,6 +36,8 @@ class CoupledRB(RBFundamentals):
         :param rb_omega:   angular velocity of body
         :param t:   time in simulation
         """
+        #compute f_fict with
+        # f_fict = −m α×b − 2 m Ω×b − m Ω×(Ω×b)
         disp = self.mesh_nodes.flatten()-self.cm_repeated+self.displacement_vectors[:, t]
         disp=disp.reshape([self.mesh_num_nodes, 3])
         m_extended = (self.m_lumped*np.ones([3, self.mesh_num_nodes])).T
@@ -47,9 +49,8 @@ class CoupledRB(RBFundamentals):
         """
         if self.time_array is None:
             raise SolutionError('No time array at which to calculate the solution.\nSet a time array for self.time_array or pass a suitable array as argument to this function.')
-                
-        self.moi, self.moi_inv = self.find_moi(self.mesh_nodes)
         
+        #set up variables
         self.angle_mtrx = np.zeros((3, 3, len(self.time_array)))
         self.angle_mtrx[:, :, 0] = self.angle_mtrx_0
         self.rb_omega = np.zeros((self.ndim, len(self.time_array)))
@@ -76,12 +77,14 @@ class CoupledRB(RBFundamentals):
         self.betas = np.zeros((self.num_modes, len(self.time_array) + time_shift))
         self.offset = np.zeros((self.num_modes, len(self.time_array) + time_shift))
         
+        #deal with situation where forcing doesn't start at 0
         if time_shift == 1:
             self.force_times = np.hstack(([0], self.force_times))
             self.projected_force = np.hstack((np.zeros([self.num_modes, 1]), self.projected_force))
             if self.unprojected_force is not None:
                 self.unprojected_force = np.hstack((np.zeros([len(self.unprojected_force), 1]), self.unprojected_force))
-
+        
+        # compute modal analysis for first step
         magnitude_0 = np.sqrt(np.power(self.projected_initial_vel[:] / self.omega[:], 2) + np.power(self.projected_initial_disp[:], 2))
         if 0 in magnitude_0:
             angle_0 = np.zeros(self.num_modes)
@@ -95,7 +98,7 @@ class CoupledRB(RBFundamentals):
             self.offset[:, 0] = self.projected_force[:, 0] / self.eigenvalues[:]
                     
         self.moi=np.zeros([3,3,len(self.time_array)])
-        
+        #make force for each time in time_array
         for i in range(len(self.force_times) + 1):
             if i == 0:
                 lower = 0
@@ -113,8 +116,10 @@ class CoupledRB(RBFundamentals):
         
         self.moi[:, :, 0], self.moi_inv = self.find_moi(self.mesh_nodes - self.displacement_vectors[:, 0].reshape(self.mesh_num_nodes, 3))
 
-                
+        #apply CoupledRB algorithm
         for t in range(1,len(self.time_array)):
+            
+            #do RBM stuff
             torque = self.find_torque(force[:, t], self.mesh_nodes.flatten()-self.cm_repeated+self.displacement_vectors[:, t-1])
 
             self.rb_alpha[:,t] = self.get_angular_acceleration(torque, self.moi_inv, self.rb_omega[:, t-1])
@@ -124,6 +129,7 @@ class CoupledRB(RBFundamentals):
                 
             self.f_fict[:, t] = self.get_f_fict(self.rb_alpha[:,t], self.rb_omega[:, t], t-1)
             
+            #do MA stuff
             if t==1:
                 f_prev=force[:,t-1]
             else:

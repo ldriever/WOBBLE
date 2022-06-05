@@ -31,7 +31,9 @@ class SimpleRB(RBFundamentals):
         """
         self.moi, self.moi_inv = self.find_moi(self.mesh_nodes)
         
-        # Doing the modal analysis part of the solution:
+        # Doing the modal analysis part of the solution
+        # can be done entirely separately of RBM
+        # due to SimpleRB decoupling assumption
         self.solve_step_loading(**kwargs)
         self.get_r_and_r_dot(**kwargs)
         self.get_displacement_vectors(**kwargs)

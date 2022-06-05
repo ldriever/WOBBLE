@@ -96,16 +96,19 @@ class RBFundamentals(MAFundamentals, ABC):
         self.assemble_stiffness(**kwargs)
         self.assemble_mass(**kwargs)
         
+        #get lumped mass matrix
         if m_lumped is not None:
             self.m_lumped = m_lumped
         else:
             self.m_lumped = np.array(np.sum(self.m_star[::3, :], axis=1)).flatten()
         self.m_tot = np.sum(self.m_lumped)
 
+        #get centre of mass
         if cm is not None:
             self.cm = cm
         else:
             self.find_cm()
+        #as a repeated vector for ease of use later
         self.cm_repeated = np.tile(self.cm, self.mesh_num_nodes)
 
     def set_initial_conditions(self, r_0=None, r_dot_0=None, angle_mtrx_0=None, rb_omega_0=None, **kwargs):
@@ -144,7 +147,7 @@ class RBFundamentals(MAFundamentals, ABC):
             num_considered_modes = self.mesh_num_nodes
         else:
             num_considered_modes = self.boundary_mask.sum() // 3
-        
+        #make force for each time in time_array
         for i in range(len(self.force_times) + 1):
             if i == 0:
                 lower = 0
@@ -179,7 +182,8 @@ class RBFundamentals(MAFundamentals, ABC):
         force_in_inertial = []
         for t in range(len(self.time_array) - 1):
             force_in_inertial.append(self.rotate(self.angle_mtrx[:, :, t], self.total_force[:, t])) 
-            
+        
+        #find r_cm
         force_in_inertial = np.array(force_in_inertial).T
         dt = self.time_array[1:] - self.time_array[:-1]
         acceleration = force_in_inertial / self.m_tot
@@ -259,6 +263,7 @@ class RBFundamentals(MAFundamentals, ABC):
 
         self.angle_vect = np.zeros((3, len(self.time_array)))
         for i in range(len(self.time_array)):
+            #method from scipy (https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.html)
             self.angle_vect[:, i] = rot.from_matrix(self.angle_mtrx[:, :, i]).as_rotvec()
 
     def get_energy(self, **kwargs):
@@ -279,7 +284,7 @@ class RBFundamentals(MAFundamentals, ABC):
 
             else:
                 moi = self.moi
-
+            #add rotational energy to KE: 0.5 omega^T I_hat omega
             self.ke[i] += .5 * self.m_tot * (self.r_dot_cm[:, i].T @ self.r_dot_cm[:, i]) + .5* self.rb_omega[:, i].T @ moi @ self.rb_omega[:, i]
 
     def find_cm(self):
@@ -295,13 +300,15 @@ class RBFundamentals(MAFundamentals, ABC):
         """
         moi = np.zeros([3,3])
         rel_pos = (node_positions - self.cm)
-
+        #find moment of inertia in discrete case
+        #standard formulae e.g. from https://farside.ph.utexas.edu/teaching/336k/Newton/node64.html
         moi[0,0] = (rel_pos[:,1]**2 + rel_pos[:,2]**2)@self.m_lumped
         moi[1,1] = (rel_pos[:,0]**2 + rel_pos[:,2]**2)@self.m_lumped
         moi[2,2] = (rel_pos[:,1]**2 + rel_pos[:,0]**2)@self.m_lumped
         moi[0,1] = -(rel_pos[:,0]*rel_pos[:,1])@self.m_lumped
         moi[0,2] = -(rel_pos[:,0]*rel_pos[:,2])@self.m_lumped
         moi[1,2] = -(rel_pos[:,1]*rel_pos[:,2])@self.m_lumped
+        #moi is symmetric
         moi[1,0] = moi[0,1]
         moi[2,1] = moi[1,2]
         moi[2,0] = moi[0,2]
@@ -338,7 +345,12 @@ class RBFundamentals(MAFundamentals, ABC):
         :param angle:   angle matrix to rotate about
         :param vect:   vector to rotate
         """
-        # Rptation from body to inertial frame
+        # Rotation from body to inertial frame
+        # NB: this process is not commutative
+        # normal scalar approximations e.g. Forward Euler
+        # can not be applied
+        # Instead, we use Rodrigues formula
+        # https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
         rotated = np.zeros(vect.shape)
         R = angle
         rotated[::3]=vect[::3]*R[0,0]+vect[1::3]*R[0,1]+vect[2::3]*R[0,2]
@@ -346,7 +358,7 @@ class RBFundamentals(MAFundamentals, ABC):
         rotated[2::3]=vect[::3]*R[2,0]+vect[1::3]*R[2,1]+vect[2::3]*R[2,2]
         return rotated
     
-    def get_decoupling_region(self, d_min==5*10**-2, d_max=10**-6, f_min=None, f_max=None, save=False, **kwargs):
+    def get_decoupling_region(self, d_min=5*10**-2, d_max=10**-6, f_min=None, f_max=None, save=False, **kwargs):
         """
         Plots the regions suitable for SimpleRB and CoupledRB simulations
         :param d_min:   maximum displacement allowed for SimpleRB
@@ -354,6 +366,7 @@ class RBFundamentals(MAFundamentals, ABC):
         :param f_min:   maximum force allowed for SimpleRB
         :param f_max:   maximum force allowed for CoupleRB
         """
+        #get values of bounding curves
         if (f_min is not None) and (f_max is not None):
             denom = np.max((np.ones((ma.mesh_num_nodes, 3)) * (np.linalg.norm(ma.mesh_nodes-ma.cm, axis=1) * ma.m_lumped).reshape(-1, 1)).flatten())
             K1 = f_min/denom
@@ -365,7 +378,8 @@ class RBFundamentals(MAFundamentals, ABC):
             K2 = d_max/denom
         else:
             raise ValueError("Did not pass in displacements or force limits")
-            
+        
+        #make the plot
         x = np.logspace(-2, 4, 1000)
         y1 = K1 - x**2
         y2 = K2 - x**2

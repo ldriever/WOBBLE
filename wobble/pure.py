@@ -29,6 +29,7 @@ class PureMA(MAFundamentals):
         """
         Shorthand function which deals with mesh creation, finding eigenmodes, and solving the system to get physical displacements.
         """
+        #all defined in MAFundamentals
         self.initialize_model(**kwargs)
         self.assemble_stiffness(**kwargs)
         self.assemble_mass(**kwargs)

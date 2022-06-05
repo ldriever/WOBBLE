@@ -149,7 +149,8 @@ class MAFundamentals(ABC):
 
         if not mesh_save_path:
             mesh_save_path = str(self.name) + '.msh'
-
+        
+        #way to create gmsh from commandline (https://gmsh.info/doc/texinfo/gmsh.html#Command_002dline-options)
         subprocess.call(['gmsh', f'-{self.ndim}', geometry_file_path, '-o', mesh_save_path])
         self.mesh_file = mesh_save_path
 
@@ -181,6 +182,7 @@ class MAFundamentals(ABC):
             self.mesh_nodes = self.mesh.getNodes()
 
         if self.model is None:
+            # initialise model with implicit dynamics model (as per akantu examples: https://gitlab.com/akantu/akantu/-/blob/master/examples/python/eigen_modes/eigen_modes.py)
             self.model = aka.SolidMechanicsModel(self.mesh)
             self.model.initFull(aka._implicit_dynamic)
 
@@ -210,6 +212,7 @@ class MAFundamentals(ABC):
             self.initialize_model(**kwargs)
 
         for i in range(len(bc_dicts)):
+            #types of boundary conditions possible in akantu (https://akantu.gitlab.io/akantu/manual/solidmechanicsmodel.html)
             if bc_dicts[i]['type'] == 'FixedValue':
                 self.model.applyBC(aka.FixedValue(bc_dicts[i]['value'], get_aka_axis(bc_dicts[i]['axis'])), bc_dicts[i]['group'])
             elif bc_dicts[i]['type'] == 'IncrementValue':
@@ -221,6 +224,7 @@ class MAFundamentals(ABC):
             else:
                 raise BoundaryConditionError(f'The type of boundary condition specified in entry {i} of bc_dicts is not a valid boundary condition type.\nAllowed boundary condition types are FixedValue, IncrementValue, FromTraction and FromStress.')
 
+        #get blocked degrees of freedom mask
         self.blocked_dof_mask = np.invert(self.model.getBlockedDOFs().flatten())
 
         if self.num_modes > np.sum(self.blocked_dof_mask):
@@ -241,6 +245,7 @@ class MAFundamentals(ABC):
             k = np.loadtxt(self.k_path)
         else:
             self.model.assembleStiffnessMatrix()
+            #get stiffness matrix from mesh
             k = self.model.getDOFManager().getMatrix('K')
             k = aka.AkantuSparseMatrix(k).toarray()
 
@@ -264,6 +269,7 @@ class MAFundamentals(ABC):
             m = np.loadtxt(self.m_path)
         else:
             self.model.assembleMass()
+            #get mass matrix from mesh
             m = self.model.getDOFManager().getMatrix('M')
             m = aka.AkantuSparseMatrix(m).toarray()
 
@@ -285,11 +291,14 @@ class MAFundamentals(ABC):
             try:
                 storage = np.loadtxt(self.eigenmode_path, usecols=np.arange(self.num_modes), delimiter=',')
             except:
-                raise FileError('The file containing the eigenmodes contains less modes than desired. Lower self.num_modes or use a different file.')
+                raise FileError('The file containing the eigenmodes could not be opened or contains less modes than desired. Lower self.num_modes or use a different file.')
                 
             self.eigenvalues = storage[0]
+            if self.num_modes==1:
+                self.eigenvalues = np.array([self.eigenvalues])
             self.omega = np.sqrt(self.eigenvalues)
             self.eigenvectors = storage[1:]
+            self.eigenvectors=self.eigenvectors.reshape(self.blocked_dof_mask.sum(), self.num_modes)
 
         else:
             if self.k_star is None:
@@ -308,22 +317,26 @@ class MAFundamentals(ABC):
             if considered_modes == 'all':
                 considered_modes = self.mesh_num_nodes * self.ndim
                 
+            #rigid body modes require special attention
             if self.rigid_body_motion:
                 # Depending on the number of modes with eigenvalue zero that the algorithm computes, between zero and five modes too many must be computed (one zero mode always appears to be computed)
                 considered_modes = considered_modes + 6
 
             if considered_modes >= np.sum(self.blocked_dof_mask):
+                #get all modes
                 vals, vects = eigh(self.k_star.toarray(), b=self.m_star.toarray())
             else:
+                #get subset of modes (slower algorithm)
                 vals, vects = eigsh(self.k_star, M=self.m_star, which='SM', k=considered_modes)
                 
             storage = np.vstack((np.real(vals).reshape(1, -1), np.real(vects)))
             storage = storage[:, storage[0].argsort()]
 
             if self.rigid_body_motion:
+                #deal with zero value modes (within numerical tolerance)
                 if self.zero_mode_tolerance == 'auto':
                     first_mode = np.where(np.invert(abs(storage[0, 1:] / storage[0, :-1]) < 100))[0][
-                                     0] + 1  # TODO check if this makes sense. Is mostly and eye-balled guesstimate
+                                     0] + 1
                 else:
                     first_mode = np.sum(storage[0, :] < self.zero_mode_tolerance)
 
@@ -331,9 +344,13 @@ class MAFundamentals(ABC):
                 storage = storage[:, first_mode : first_mode + considered_modes - 6]
 
             self.eigenvalues = storage[0, :]
+            if self.num_modes==1:
+                self.eigenvalues = np.array([self.eigenvalues])
             self.omega = np.sqrt(self.eigenvalues)
             self.eigenvectors = storage[1:, :]
-
+            self.eigenvectors=self.eigenvectors.reshape(self.blocked_dof_mask.sum(), self.num_modes)
+            
+            #normalise eigenvectors so that P^T M P = I
             self.eigenvectors = self.eigenvectors / np.sqrt(
                 np.diag(self.eigenvectors.T @ self.m_star @ self.eigenvectors))
 
@@ -375,10 +392,12 @@ class MAFundamentals(ABC):
                 'No force to project onto modal basis.\nSet a file path for self.projected_force_path or self.force_path or pass one of these paths as argument to this function.')
 
         self.force_times = container[0, :]
-
+        
+        #compute projected force F = P^T f_ext
         if projected:
             self.projected_force = container[1:, :]
         else:
+            self.unprojected_force = container[1:, :]
             if self.eigenvectors is None:
                 self.find_eigenmodes(**kwargs)
 
@@ -405,7 +424,8 @@ class MAFundamentals(ABC):
         else:
             self.projected_initial_disp = np.zeros(self.num_modes)
             projected = True
-            
+        
+        #compute r_0 = P^T M u_0
         if not projected:
             if self.eigenvectors is None:
                 self.find_eigenmodes(**kwargs)
@@ -433,6 +453,7 @@ class MAFundamentals(ABC):
             self.projected_initial_vel = np.zeros(self.num_modes)
             projected = True
             
+        #compute r_dot_0 = P^T M u_dot_0
         if not projected:
             if self.eigenvectors is None:
                 self.find_eigenmodes(**kwargs)
@@ -468,6 +489,7 @@ class MAFundamentals(ABC):
         # Compute the solution for the modes with non-zero frequency
         # The solution is of the form alpha * sin(w t + beta)
 
+        #set initial values
         magnitude_0 = np.sqrt(np.power(self.projected_initial_vel[:] / self.omega[:], 2) + np.power(self.projected_initial_disp[:], 2))
         if 0 in magnitude_0:
             angle_0 = np.zeros(self.num_modes)
@@ -483,6 +505,7 @@ class MAFundamentals(ABC):
         self.alphas[:, 0] = magnitude_0
         self.betas[:, 0] = angle_0
 
+        #iterate and compute the next solution for the next heaviside step function
         for t in range(1, len(self.force_times)):
             delta_f = self.projected_force[:, t] - self.projected_force[:, t - 1]
 
@@ -523,6 +546,7 @@ class MAFundamentals(ABC):
 
         max_index = sum(self.force_times <= self.time_array[-1])  # <= to also include the boundary case
 
+        #construct r and r_dot from the alphas and betas
         self.r = np.zeros((self.num_modes, len(self.time_array)))  # Coordinate in modal space
         self.r_dot = np.zeros((self.num_modes, len(self.time_array)))  # time derivative of r
         for t in range(max_index):
@@ -542,7 +566,8 @@ class MAFundamentals(ABC):
         """
         if self.r is None:
             self.get_r_and_r_dot(**kwargs)
-
+        
+        #find displacements u = P r
         if self.boundary_mask is None:
             self.displacement_vectors = self.eigenvectors @ self.r
         else:
@@ -557,7 +582,8 @@ class MAFundamentals(ABC):
         """
         if self.r_dot is None:
             self.get_r_and_r_dot(**kwargs)
-
+        
+        #find displacements u_dot = P r_dot
         if self.boundary_mask is None:
             self.velocity_vectors = self.eigenvectors @ self.r_dot
         else:
@@ -612,7 +638,9 @@ class MAFundamentals(ABC):
         """
         if self.r is None or self.r_dot is None:
             raise SolutionError('No solution in modal space (r and r_dot) that can be used to compute the vibrational energy')
-            
+        
+        # equivalent to KE = 1/2 u_dot^T M u_dot
+        # and PE = 1/2 u^T K u and cheaper to compute
         self.vib_ke = .5 * np.sum(self.r_dot * self.r_dot, axis=0)
         self.vib_pe = .5 * np.sum(self.r * self.r * self.eigenvalues.reshape(-1, 1), axis=0)
         
@@ -630,7 +658,8 @@ class MAFundamentals(ABC):
         forces = (self.m_star @ self.eigenvectors) @ self.projected_force  # Un-projected projected force, described as forces acting on the nodes
 
         max_index = np.sum(self.force_times <= self.time_array[-1])  # <= to also include the boundary case
-
+        
+        #find f_ext dot u
         self.force_energy_correction = np.zeros(len(self.time_array))
         for t in range(max_index):
             if t == max_index - 1:
