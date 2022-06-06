@@ -144,7 +144,7 @@ class MAFundamentals(ABC):
     # Methods for setting up and solving the system:
     def create_mesh(self, overload_geometry_file=None, mesh_save_path=None, **kwargs):
         """
-        Given a geometry file, creates a mesh using gmsh. Note: mesh is of order 1.
+        Given a geometry file, creates a mesh using gmsh. Note: mesh is of order 2.
         """
         if overload_geometry_file:
             geometry_file_path = overload_geometry_file
@@ -157,7 +157,7 @@ class MAFundamentals(ABC):
             mesh_save_path = str(self.name) + '.msh'
         
         #way to create gmsh from commandline (https://gmsh.info/doc/texinfo/gmsh.html#Command_002dline-options)
-        subprocess.call(['gmsh', f'-{self.ndim}', geometry_file_path, '-o', mesh_save_path])
+        subprocess.call(['gmsh', f'-{self.ndim}', geometry_file_path, '-order', '2', '-o', mesh_save_path])
         self.mesh_file = mesh_save_path
 
     def initialize_model(self, overload_mesh_file=None, overload_material_file=None, **kwargs):
@@ -294,6 +294,8 @@ class MAFundamentals(ABC):
             self.eigenmode_path = eigenmode_path
         
         if self.eigenmode_path:
+            if self.rigid_body_motion and self.num_modes > self.mesh_num_nodes * 3 - 6:
+                self.num_modes = self.mesh_num_nodes * 3 - 6
             try:
                 storage = np.loadtxt(self.eigenmode_path, usecols=np.arange(self.num_modes), delimiter=',')
             except:
