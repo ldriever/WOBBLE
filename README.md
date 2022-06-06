@@ -2,6 +2,10 @@
 
 ### Extending EPFL's [Akantu](https://akantu.ch/) package, WOBBLE _(Waves Of Beams and other Bodies due to Loadings and Excitations)_ offers efficient and accurate simulation capabilities by utilising modal analysis and rigid body mechanics
 
+## Authors
+- Oisín Morrison (<oisin.morrison@epfl.ch>)
+- Leonhard Driever (<leonhard.driever@epfl.ch>)
+
 ## Purpose
 WOBBLE is designed to deal with situations where large translations and rotations may be at play. This makes the package suitable for the simulation of satellites in space, which is important for applications such as [ClearSpace](https://clearspace.today/).
 

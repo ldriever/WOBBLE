@@ -1,3 +1,13 @@
+"""
+This file contains a class implementing a coupled rigid body and modal analysis solver
+"""
+
+__author__ = "Oisín Morrison, Leonhard Driever"
+__credits__ = [
+    "Oisín Morrison <oisin.morrison@epfl.ch>",
+    "Leonhard Driever <leonhard.driever@epfl.ch>"
+]
+
 import numpy as np
 from .rb_fundamentals import RBFundamentals
 from .ma_exceptions import *

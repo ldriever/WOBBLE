@@ -1,3 +1,14 @@
+"""
+This file contains a class designed to deal with rigid body mechanics.
+It is built on top of the modal analysis solver.
+"""
+
+__author__ = "Oisín Morrison, Leonhard Driever"
+__credits__ = [
+    "Oisín Morrison <oisin.morrison@epfl.ch>",
+    "Leonhard Driever <leonhard.driever@epfl.ch>"
+]
+
 import numpy as np
 from .ma_fundamentals import MAFundamentals
 from scipy.spatial.transform import Rotation as rot

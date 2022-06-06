@@ -1,3 +1,13 @@
+"""
+This file contains a class implementing a pure modal analysis solver
+"""
+
+__author__ = "Oisín Morrison, Leonhard Driever"
+__credits__ = [
+    "Oisín Morrison <oisin.morrison@epfl.ch>",
+    "Leonhard Driever <leonhard.driever@epfl.ch>"
+]
+
 import numpy as np
 from .ma_fundamentals import MAFundamentals
 from .ma_exceptions import *

@@ -3,6 +3,12 @@ This file contains a class designed to handle and perform modal analysis of stru
 It is based in parts on the software package Akantu
 """
 
+__author__ = "Oisín Morrison, Leonhard Driever"
+__credits__ = [
+    "Oisín Morrison <oisin.morrison@epfl.ch>",
+    "Leonhard Driever <leonhard.driever@epfl.ch>"
+]
+
 import numpy as np
 import akantu as aka
 import matplotlib.pyplot as plt
