@@ -260,8 +260,7 @@ class RBFundamentals(MAFundamentals, ABC):
             self.model.setBaseName(f"{self.name}_total_motion")
 
         for t in range(0, len(self.time_array), freq):
-            self.node_displacement.reshape(self.mesh_num_nodes * self.ndim)[
-                self.blocked_dof_mask][self.boundary_mask] = self.total_displacement_vectors[:, t]
+            self.node_displacement.reshape(self.mesh_num_nodes * self.ndim)[self.boundary_mask[self.blocked_dof_mask]] = self.total_displacement_vectors[:, t]
             self.model.dump()
 
     def get_rotation_angles(self, **kwargs):
