@@ -10,6 +10,7 @@ __credits__ = [
 ]
 
 import numpy as np
+import matplotlib.pyplot as plt
 from .ma_fundamentals import MAFundamentals
 from scipy.spatial.transform import Rotation as rot
 from abc import ABC, abstractmethod
@@ -368,7 +369,7 @@ class RBFundamentals(MAFundamentals, ABC):
         rotated[2::3]=vect[::3]*R[2,0]+vect[1::3]*R[2,1]+vect[2::3]*R[2,2]
         return rotated
     
-    def get_decoupling_region(self, d_min=5*10**-2, d_max=10**-6, f_min=None, f_max=None, save=False, **kwargs):
+    def get_decoupling_region(self, d_min=10**-6, d_max=5*10**-2, f_min=None, f_max=None, save=False, **kwargs):
         """
         Plots the regions suitable for SimpleRB and CoupledRB simulations
         :param d_min:   maximum displacement allowed for SimpleRB
@@ -378,12 +379,12 @@ class RBFundamentals(MAFundamentals, ABC):
         """
         #get values of bounding curves
         if (f_min is not None) and (f_max is not None):
-            denom = np.max((np.ones((ma.mesh_num_nodes, 3)) * (np.linalg.norm(ma.mesh_nodes-ma.cm, axis=1) * ma.m_lumped).reshape(-1, 1)).flatten())
+            denom = np.max((np.ones((self.mesh_num_nodes, 3)) * (np.linalg.norm(self.mesh_nodes-self.cm, axis=1) * self.m_lumped).reshape(-1, 1)).flatten())
             K1 = f_min/denom
             K2 = f_max/denom
         elif (d_min is not None) and (d_max is not None):
-            bm=(np.ones((ma.mesh_num_nodes, 3)) * (np.linalg.norm(ma.mesh_nodes-ma.cm, axis=1) * ma.m_lumped).reshape(-1, 1)).flatten()
-            denom = np.max((ma.eigenvectors @ ((ma.eigenvectors.T @ bm ) / ma.eigenvalues)) )
+            bm=(np.ones((self.mesh_num_nodes, 3)) * (np.linalg.norm(self.mesh_nodes-self.cm, axis=1) * self.m_lumped).reshape(-1, 1)).flatten()
+            denom = np.max((self.eigenvectors @ ((self.eigenvectors.T @ bm ) / self.eigenvalues)) )
             K1 = d_min/denom
             K2 = d_max/denom
         else:
@@ -408,3 +409,4 @@ class RBFundamentals(MAFundamentals, ABC):
         if save:
             fig.savefig('neglection_region.png', bbox_inches='tight')
         plt.show()
+        
