@@ -1,15 +1,18 @@
 # WOBBLE: Solid Dynamics Simulation Tool for Large Translation and Rotations
 
-### Extending EPFL's [Akantu](https://akantu.ch/) package, WOBBLE _(Waves Of Beams and other Bodies due to Loadings and Excitations)_ offers efficient and accurate simulation capabilities by utilising modal analysis and rigid body mechanics
+### Extending EPFL's [Akantu](https://akantu.ch/) package, WOBBLE *(Waves Of Beams and other Bodies due to Loadings and Excitations)* offers efficient and accurate simulation capabilities by utilising modal analysis and rigid body mechanics
 
 ## Authors
+
 - Oisín Morrison (<oisin.morrison@epfl.ch>)
 - Leonhard Driever (<leonhard.driever@epfl.ch>)
 
 ## Purpose
+
 WOBBLE is designed to deal with situations where large translations and rotations may be at play. This makes the package suitable for the simulation of satellites in space, which is important for applications such as [ClearSpace](https://clearspace.today/).
 
 ## Key Features
+
 - Efficient Numerical Solvers
 - Accurate Results
 - Ability to Model Both Clamped and Non-Clamped Bodies
@@ -48,6 +51,7 @@ where
 - `rb_coupled.py` contains the `CoupledRB` class, which implements the SimpleRB algorithm discussed in the report (implements rigid body mechanics and modal analysis in a coupled fashion)
 
 ## Usage
+
 Examples of notebooks are provided in the `sample_notebooks` folder.
 
 The authors recommend the following:
@@ -56,6 +60,7 @@ The authors recommend the following:
 - Use `CoupledRB` if the beam is expected to be subject to a large amount of fictitious forces due to its rotation
 
 ## Requirements
+
 WOBBLE was tested with `Python 3.8.10` and uses the following packages:
 ```
 akantu==4.0.1
@@ -65,4 +70,5 @@ scipy==1.8.0
 ```
 
 ## Other
-_For further details, please see our report or contact the authors_
+
+*For further details, please see our report or contact the authors*
